@@ -83,29 +83,25 @@ export class CaptureManager implements vscode.Disposable {
   }
 
   private _startPolling() {
-    // Poll every 5 minutes
-    this._pollTimer = setInterval(async () => {
+    const runPoll = async () => {
       if (!this._settings.autoCapture) return;
       const logs = await this._localParser.pollLogs();
       for (const log of logs) {
-        const messages = parseConversationText(log.content);
-        if (messages.length > 0) {
-          this.captureMessages(messages, { sourceIde: log.ide, title: 'Auto-captured Log' });
+        // LocalFileParser now returns structured messages directly
+        if (log.messages.length > 0) {
+          this.captureMessages(log.messages, {
+            sourceIde: log.ide,
+            title: log.title || 'Auto-captured Log',
+          });
         }
       }
-    }, 5 * 60 * 1000);
+    };
 
-    // Initial poll
-    setTimeout(async () => {
-      if (!this._settings.autoCapture) return;
-      const logs = await this._localParser.pollLogs();
-      for (const log of logs) {
-        const messages = parseConversationText(log.content);
-        if (messages.length > 0) {
-          this.captureMessages(messages, { sourceIde: log.ide, title: 'Auto-captured Log' });
-        }
-      }
-    }, 5000);
+    // Initial poll after 5 seconds (give DB time to fully init)
+    setTimeout(runPoll, 5000);
+
+    // Then poll every 5 minutes
+    this._pollTimer = setInterval(runPoll, 5 * 60 * 1000);
   }
 
 
