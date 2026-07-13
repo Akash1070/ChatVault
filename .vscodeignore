@@ -15,7 +15,6 @@ tsconfig*.json
 .eslintrc*
 .prettierrc*
 # Dependency source (native binaries ARE included via webpack CopyPlugin)
-node_modules/
 # Git artifacts
 .git/
 .gitignore
