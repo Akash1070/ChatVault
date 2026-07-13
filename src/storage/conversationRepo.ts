@@ -541,15 +541,15 @@ export function getMessages(conversationId: string): Message[] {
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 /**
- * Searches conversations using SQLite FTS5.
- * Returns summaries for all conversations that have at least one message
- * matching the query, ranked by FTS5 relevance (bm25).
+ * Searches conversations using SQL LIKE matching.
+ * Returns summaries for all conversations whose title matches the query
+ * or that have at least one message whose content matches the query.
  *
- * The FTS5 virtual table (messages_fts) is kept in sync via INSERT/UPDATE/DELETE
- * triggers defined in migrations.ts.
+ * Note: FTS5 is not used because the sql.js WASM binary (from npm) is compiled
+ * without FTS5 support. LIKE search is fully portable and sufficient for
+ * the expected vault sizes (< 10k conversations).
  *
- * @param query - The full-text search query string. Supports FTS5 syntax
- *                (e.g., "auth AND token", "\"exact phrase\"").
+ * @param query - The search string.
  * @param limit - Max results. Default: 20.
  */
 export function searchConversations(
@@ -562,7 +562,9 @@ export function searchConversations(
     return listConversations({ limit });
   }
 
-  // FTS5 MATCH query — bm25() provides relevance ranking (lower = more relevant)
+  const likeParam = `%${query}%`;
+
+  // Search titles + message content via LIKE
   const rows = db.prepare(`
     SELECT DISTINCT
       c.*,
@@ -575,16 +577,18 @@ export function searchConversations(
         ), 1, 200
       ) AS preview
     FROM conversations c
-    INNER JOIN (
-      SELECT conversation_id, MIN(rank) AS best_rank
-      FROM messages_fts
-      WHERE messages_fts MATCH ?
-      GROUP BY conversation_id
-    ) fts ON fts.conversation_id = c.id
     WHERE c.deleted_at IS NULL
-    ORDER BY fts.best_rank ASC
+      AND (
+        c.title LIKE ?
+        OR EXISTS (
+          SELECT 1 FROM messages m
+          WHERE m.conversation_id = c.id
+            AND m.content LIKE ?
+        )
+      )
+    ORDER BY c.updated_at DESC
     LIMIT ?
-  `).all(query, limit) as RawConversationRow[];
+  `).all(likeParam, likeParam, limit) as RawConversationRow[];
 
   return rows.map(mapSummary);
 }

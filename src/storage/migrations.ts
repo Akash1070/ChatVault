@@ -118,46 +118,10 @@ const MIGRATIONS: Migration[] = [
           ON messages (conversation_id, created_at ASC);
       `);
 
-      // ─── Full-Text Search virtual table ──────────────────────────────────
-      // FTS5 provides fast, ranked full-text search over message content.
-      // This is used as the primary search path; Fuse.js is the in-memory
-      // fallback for small result sets and fuzzy matching.
-      db.exec(`
-        CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts
-          USING fts5(
-            content,             -- The searchable content
-            conversation_id UNINDEXED, -- FK, not indexed for FTS
-            content='messages',  -- External content table
-            content_rowid='rowid'
-          );
-      `);
-
-      // Triggers to keep the FTS index in sync with the messages table
-      db.exec(`
-        CREATE TRIGGER IF NOT EXISTS messages_ai
-          AFTER INSERT ON messages BEGIN
-            INSERT INTO messages_fts (rowid, content, conversation_id)
-              VALUES (new.rowid, new.content, new.conversation_id);
-          END;
-      `);
-
-      db.exec(`
-        CREATE TRIGGER IF NOT EXISTS messages_ad
-          AFTER DELETE ON messages BEGIN
-            INSERT INTO messages_fts (messages_fts, rowid, content, conversation_id)
-              VALUES ('delete', old.rowid, old.content, old.conversation_id);
-          END;
-      `);
-
-      db.exec(`
-        CREATE TRIGGER IF NOT EXISTS messages_au
-          AFTER UPDATE ON messages BEGIN
-            INSERT INTO messages_fts (messages_fts, rowid, content, conversation_id)
-              VALUES ('delete', old.rowid, old.content, old.conversation_id);
-            INSERT INTO messages_fts (rowid, content, conversation_id)
-              VALUES (new.rowid, new.content, new.conversation_id);
-          END;
-      `);
+      // NOTE: FTS5 is intentionally NOT used here.
+      // The sql.js WASM binary (from npm) is compiled without FTS5 support,
+      // which would cause a "no such module: fts5" crash on startup.
+      // Search is handled via LIKE-based SQL queries in conversationRepo.ts.
     },
   },
   {
@@ -228,6 +192,37 @@ const MIGRATIONS: Migration[] = [
           key   TEXT PRIMARY KEY NOT NULL,
           value TEXT NOT NULL
         );
+      `);
+    },
+  },
+  {
+    version: 5,
+    description: 'Drop FTS5 virtual table and triggers (sql.js WASM lacks FTS5 support)',
+    up: (db: SqlJsDatabase) => {
+      // These were created by migration v1 in older versions but cause a crash
+      // because the sql.js npm package is compiled without FTS5.
+      // DROP IF EXISTS is safe to run even if the table never existed.
+      db.exec(`DROP TRIGGER IF EXISTS messages_au;`);
+      db.exec(`DROP TRIGGER IF EXISTS messages_ad;`);
+      db.exec(`DROP TRIGGER IF EXISTS messages_ai;`);
+      db.exec(`DROP TRIGGER IF EXISTS messages_count_ai;`);
+      db.exec(`DROP TRIGGER IF EXISTS messages_count_ad;`);
+      // Recreate the count triggers (they were also dropped above for safety)
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS messages_count_ai
+          AFTER INSERT ON messages BEGIN
+            UPDATE conversations
+              SET message_count = message_count + 1, updated_at = datetime('now')
+              WHERE id = new.conversation_id;
+          END;
+      `);
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS messages_count_ad
+          AFTER DELETE ON messages BEGIN
+            UPDATE conversations
+              SET message_count = MAX(0, message_count - 1)
+              WHERE id = old.conversation_id;
+          END;
       `);
     },
   },
