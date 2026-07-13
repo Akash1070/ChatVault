@@ -2,7 +2,7 @@
   "name": "chatvault",
   "displayName": "ChatVault",
   "description": "Capture, persist, search and manage every AI chat session across IDE sessions. Works in VS Code, Cursor, Windsurf.",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "publisher": "akashkumarjha",
   "icon": "media/icon.png",
   "license": "MIT",

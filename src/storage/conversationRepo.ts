@@ -77,6 +77,7 @@ export interface CreateConversationInput {
   tags?: string[];
   source_ide?: SourceIde;
   notes?: string;
+  created_at?: string;      // ISO 8601 string
 }
 
 /** Input shape for adding a message to a conversation. */
@@ -208,7 +209,7 @@ function nowIso(): string {
 export function createConversation(data: CreateConversationInput): Conversation {
   const db = getDb();
   const id = uuidv4();
-  const now = nowIso();
+  const now = data.created_at ?? nowIso();
 
   const stmt = db.prepare(`
     INSERT INTO conversations (

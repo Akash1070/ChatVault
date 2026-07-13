@@ -1,12 +1,4 @@
-/**
- * src/webview/components/ConversationList.tsx
- *
- * Renders the list of ConversationSummary items in the sidebar.
- * Each item shows: title, preview snippet, tags, IDE badge, date, message count.
- * Uses CSS classes from styles.css — no inline styles except unavoidable dynamic values.
- */
-
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import type { ConversationSummary } from '../types';
 
 interface ConversationListProps {
@@ -20,18 +12,96 @@ export function ConversationList({
   selectedId,
   onSelect,
 }: ConversationListProps): JSX.Element {
+  // Track collapsed state of project groups (expanded by default)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupName: string) => {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [groupName]: !prev[groupName]
+    }));
+  };
+
+  // Group conversations
+  const groups: Record<string, { conversations: ConversationSummary[]; mostRecentTime: number }> = {};
+  for (const conv of conversations) {
+    const projName = getProjectName(conv.project_path);
+    if (!groups[projName]) {
+      groups[projName] = {
+        conversations: [],
+        mostRecentTime: 0,
+      };
+    }
+    groups[projName].conversations.push(conv);
+    const convTime = new Date(conv.updated_at).getTime();
+    if (convTime > groups[projName].mostRecentTime) {
+      groups[projName].mostRecentTime = convTime;
+    }
+  }
+
+  // Sort groups by most recent time descending
+  const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+    return groups[b].mostRecentTime - groups[a].mostRecentTime;
+  });
+
+  // For each group, sort conversations by updated_at descending
+  for (const projName of sortedGroupNames) {
+    groups[projName].conversations.sort((a, b) => {
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
+  }
+
   return (
     <>
-      {conversations.map((conv) => (
-        <ConversationListItem
-          key={conv.id}
-          conversation={conv}
-          isSelected={conv.id === selectedId}
-          onSelect={onSelect}
-        />
-      ))}
+      {sortedGroupNames.map((projName) => {
+        const group = groups[projName];
+        const isCollapsed = !!collapsedGroups[projName];
+        return (
+          <div key={projName} className="cv-project-group">
+            <div
+              className="cv-project-header"
+              onClick={() => toggleGroup(projName)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  toggleGroup(projName);
+                }
+              }}
+            >
+              <div className="cv-project-header-left">
+                <span>📁</span>
+                <span>{projName}</span>
+                <span className="cv-project-badge">{group.conversations.length}</span>
+              </div>
+              <span className={`cv-project-chevron${isCollapsed ? ' collapsed' : ''}`}>▼</span>
+            </div>
+
+            {!isCollapsed && (
+              <div className="cv-project-conversations">
+                {group.conversations.map((conv) => (
+                  <ConversationListItem
+                    key={conv.id}
+                    conversation={conv}
+                    isSelected={conv.id === selectedId}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
+}
+
+function getProjectName(projectPath: string | null): string {
+  if (!projectPath) return 'General';
+  const parts = projectPath.split(/[/\\]/);
+  const cleanParts = parts.filter(Boolean);
+  if (cleanParts.length === 0) return 'General';
+  return cleanParts[cleanParts.length - 1];
 }
 
 interface ConversationListItemProps {

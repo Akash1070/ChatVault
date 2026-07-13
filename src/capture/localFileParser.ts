@@ -9,6 +9,7 @@ export interface ExtractedChat {
   title: string;
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   timestamp: number;
+  project_path?: string;
 }
 
 /**
@@ -149,11 +150,13 @@ export class LocalFileParser {
           ? firstUser.content.slice(0, 80).replace(/\n/g, ' ')
           : `Conversation from ${ide}`;
 
+        const timestamp = extractTimestamp(item, stat.mtimeMs);
+
         results.push({
           ide,
           title,
           messages,
-          timestamp: stat.mtimeMs,
+          timestamp,
         });
       }
     }
@@ -281,24 +284,65 @@ export class LocalFileParser {
       }
 
       for (const ws of workspaces) {
-        const dbPath = path.join(wsStoragePath, ws, 'state.vscdb');
-        if (!fs.existsSync(dbPath)) continue;
+        const wsDir = path.join(wsStoragePath, ws);
 
-        let stat: fs.Stats;
-        try {
-          stat = fs.statSync(dbPath);
-        } catch {
-          continue;
+        // 1. Resolve projectPath from workspace.json
+        let projectPath: string | undefined = undefined;
+        const workspaceJsonPath = path.join(wsDir, 'workspace.json');
+        if (fs.existsSync(workspaceJsonPath)) {
+          try {
+            const wsJson = JSON.parse(fs.readFileSync(workspaceJsonPath, 'utf8'));
+            const uriStr = wsJson.folder || wsJson.workspace || wsJson.configuration;
+            if (uriStr && typeof uriStr === 'string') {
+              projectPath = decodeUriToPath(uriStr);
+            }
+          } catch (e) {
+            console.warn(`[ChatVault] Failed to parse workspace.json at ${workspaceJsonPath}:`, e);
+          }
         }
 
-        // Only re-process files modified since last poll
-        if (stat.mtimeMs <= this.lastPollTime) continue;
+        // 2. Parse state.vscdb
+        const dbPath = path.join(wsDir, 'state.vscdb');
+        if (fs.existsSync(dbPath)) {
+          try {
+            const stat = fs.statSync(dbPath);
+            if (stat.mtimeMs > this.lastPollTime) {
+              const chats = await this.extractFromVscDb(dbPath, ide);
+              for (const c of chats) {
+                if (projectPath) c.project_path = projectPath;
+                results.push(c);
+              }
+            }
+          } catch (e) {
+            console.warn(`[ChatVault] Failed to parse db at ${dbPath}:`, e);
+          }
+        }
 
-        try {
-          const chats = await this.extractFromVscDb(dbPath, ide);
-          results.push(...chats);
-        } catch (e) {
-          console.warn(`[ChatVault] Failed to parse ${dbPath}:`, e);
+        // 3. Parse chatSessions/ directory
+        const chatSessionsDir = path.join(wsDir, 'chatSessions');
+        if (fs.existsSync(chatSessionsDir)) {
+          try {
+            const files = fs.readdirSync(chatSessionsDir);
+            for (const file of files) {
+              if (!file.endsWith('.json')) continue;
+              const sessionPath = path.join(chatSessionsDir, file);
+              try {
+                const stat = fs.statSync(sessionPath);
+                if (stat.mtimeMs > this.lastPollTime) {
+                  const content = fs.readFileSync(sessionPath, 'utf8');
+                  const chats = this.parseChatSessionJson(content, ide, sessionPath);
+                  for (const c of chats) {
+                    if (projectPath) c.project_path = projectPath;
+                    results.push(c);
+                  }
+                }
+              } catch (e) {
+                console.warn(`[ChatVault] Failed to parse chat session ${sessionPath}:`, e);
+              }
+            }
+          } catch (e) {
+            console.warn(`[ChatVault] Failed to read chatSessions at ${chatSessionsDir}:`, e);
+          }
         }
       }
     }
@@ -405,4 +449,114 @@ export class LocalFileParser {
 
     return messages.filter(m => m.content.length > 0);
   }
+
+  private parseChatSessionJson(
+    raw: string,
+    ide: SourceIde,
+    sessionPath: string
+  ): ExtractedChat[] {
+    if (!raw || raw.length < 20) return [];
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+
+    const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+    // Extract creation / last message dates
+    const timestamp = parsed.lastMessageDate || parsed.creationDate || fs.statSync(sessionPath).mtimeMs;
+
+    if (Array.isArray(parsed.requests)) {
+      for (const r of parsed.requests) {
+        const userText = r.message?.text || r.message?.message || '';
+        if (userText) {
+          messages.push({ role: 'user', content: String(userText) });
+        }
+
+        let assistantText = '';
+        if (Array.isArray(r.response)) {
+          assistantText = r.response
+            .map((part: any) => {
+              if (typeof part === 'string') return part;
+              if (part && typeof part === 'object') {
+                return part.value || part.markdown || part.text || '';
+              }
+              return '';
+            })
+            .filter(Boolean)
+            .join('\n');
+        } else if (typeof r.response === 'string') {
+          assistantText = r.response;
+        } else if (r.response && typeof r.response === 'object') {
+          assistantText = r.response.value || r.response.markdown || r.response.text || '';
+        }
+
+        if (assistantText) {
+          messages.push({ role: 'assistant', content: String(assistantText) });
+        }
+      }
+    }
+
+    if (messages.length === 0) return [];
+
+    const customTitle = parsed.customTitle || parsed.title;
+    const firstUser = messages.find(m => m.role === 'user');
+    const title = customTitle || (firstUser
+      ? firstUser.content.slice(0, 80).replace(/\n/g, ' ')
+      : `Copilot Session`);
+
+    return [{
+      ide,
+      title,
+      messages,
+      timestamp,
+    }];
+  }
+}
+
+function decodeUriToPath(uriStr: string): string {
+  try {
+    if (uriStr.startsWith('file://')) {
+      let decoded = decodeURIComponent(uriStr.substring(7));
+      if (process.platform === 'win32') {
+        if (decoded.startsWith('/')) {
+          decoded = decoded.substring(1);
+        }
+        decoded = decoded.replace(/\//g, '\\');
+      }
+      return decoded;
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return uriStr;
+}
+
+function extractTimestamp(obj: any, fallback: number): number {
+  if (!obj || typeof obj !== 'object') return fallback;
+  const keys = [
+    'lastActiveTime',
+    'lastMessageDate',
+    'creationDate',
+    'timestamp',
+    'time',
+    'date',
+    'createdAt',
+    'updatedAt'
+  ];
+  for (const key of keys) {
+    const val = obj[key];
+    if (typeof val === 'number') {
+      return val;
+    }
+    if (typeof val === 'string') {
+      const parsed = Date.parse(val);
+      if (!isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
 }

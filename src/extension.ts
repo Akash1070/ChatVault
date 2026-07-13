@@ -91,15 +91,25 @@ class SidebarProvider implements vscode.WebviewViewProvider {
     try {
       switch (type) {
         case 'LOAD_CONVERSATIONS': {
-          const filters: ConversationFilters = {
-            limit: (p?.limit as number | undefined) ?? _settings?.maxConversationsShown ?? 100,
-            is_starred: p?.filter === 'starred' ? true : undefined,
-            project_path:
-              p?.filter === 'project'
-                ? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-                : undefined,
+          const runLoad = async () => {
+            if (_captureManager) {
+              try {
+                await _captureManager.triggerPoll();
+              } catch (e) {
+                console.warn('[ChatVault] Webview-triggered poll failed:', e);
+              }
+            }
+            const filters: ConversationFilters = {
+              limit: (p?.limit as number | undefined) ?? _settings?.maxConversationsShown ?? 100,
+              is_starred: p?.filter === 'starred' ? true : undefined,
+              project_path:
+                p?.filter === 'project'
+                  ? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+                  : undefined,
+            };
+            send('CONVERSATIONS_LOADED', listConversations(filters));
           };
-          send('CONVERSATIONS_LOADED', listConversations(filters));
+          runLoad();
           break;
         }
 

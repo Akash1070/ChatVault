@@ -27,6 +27,7 @@ import {
 import { detectSourceIde, parseConversationText, getCaptureGuidance } from './cursorAdapter';
 import { Settings } from '../config/settings';
 import { LocalFileParser } from './localFileParser';
+import { getDb } from '../storage/db';
 
 // ─── Event payloads ────────────────────────────────────────────────────────────
 
@@ -92,6 +93,8 @@ export class CaptureManager implements vscode.Disposable {
           this.captureMessages(log.messages, {
             sourceIde: log.ide,
             title: log.title || 'Auto-captured Log',
+            projectPath: log.project_path,
+            timestamp: log.timestamp,
           });
         }
       }
@@ -100,8 +103,23 @@ export class CaptureManager implements vscode.Disposable {
     // Initial poll after 5 seconds (give DB time to fully init)
     setTimeout(runPoll, 5000);
 
-    // Then poll every 5 minutes
-    this._pollTimer = setInterval(runPoll, 5 * 60 * 1000);
+    // Then poll every 10 seconds (down from 5 minutes)
+    this._pollTimer = setInterval(runPoll, 10 * 1000);
+  }
+
+  public async triggerPoll(): Promise<void> {
+    if (!this._settings.autoCapture) return;
+    const logs = await this._localParser.pollLogs();
+    for (const log of logs) {
+      if (log.messages.length > 0) {
+        this.captureMessages(log.messages, {
+          sourceIde: log.ide,
+          title: log.title || 'Auto-captured Log',
+          projectPath: log.project_path,
+          timestamp: log.timestamp,
+        });
+      }
+    }
   }
 
 
@@ -383,20 +401,39 @@ export class CaptureManager implements vscode.Disposable {
 
   public captureMessages(
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
-    opts: { title?: string; projectPath?: string; tags?: string[]; sourceIde?: SourceIde } = {}
+    opts: { title?: string; projectPath?: string; tags?: string[]; sourceIde?: SourceIde; timestamp?: number } = {}
   ): Conversation {
+    const createdDate = opts.timestamp ? new Date(opts.timestamp).toISOString() : new Date().toISOString();
+
     const convo = createConversation({
       title: opts.title,
       project_path: opts.projectPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       tags: opts.tags,
       source_ide: opts.sourceIde ?? detectSourceIde(),
+      created_at: createdDate,
     });
     for (const m of messages) {
       if (!isDuplicate(convo.id, m.role, m.content)) {
-        const saved = addMessage(convo.id, m);
+        const saved = addMessage(convo.id, {
+          role: m.role,
+          content: m.content,
+          created_at: createdDate,
+        });
         this._onMessageAdded.fire({ conversationId: convo.id, message: saved });
       }
     }
+
+    try {
+      const db = getDb();
+      db.prepare(`
+        UPDATE conversations
+        SET created_at = ?, updated_at = ?
+        WHERE id = ?
+      `).run(createdDate, createdDate, convo.id);
+    } catch (e) {
+      console.error('[ChatVault] Failed to force-update conversation timestamps:', e);
+    }
+
     const full = getConversation(convo.id)!;
     this._onConversationSaved.fire({ conversation: full, messageCount: messages.length });
     return full;

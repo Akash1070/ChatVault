@@ -207,7 +207,7 @@ body {
 
 /* ── Conversation list ─────────────────────────────────────────────────────── */
 .cv-list-wrap {
-  flex: 1;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--sp-2) 0;
@@ -707,3 +707,57 @@ body {
 
 .cv-error-icon { color: var(--cv-danger); font-size: 24px; }
 .cv-error-text { font-size: var(--font-size-sm); color: var(--cv-text-muted); }
+
+/* ── Project Groups ────────────────────────────────────────────────────────── */
+.cv-project-group {
+  margin-bottom: var(--sp-2);
+}
+
+.cv-project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--cv-hover);
+  border-bottom: 1px solid var(--cv-border);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--font-size-md);
+  color: var(--cv-text-muted);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.cv-project-header:hover {
+  background: var(--cv-selected);
+  color: var(--cv-text);
+}
+
+.cv-project-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.cv-project-badge {
+  font-size: var(--font-size-xs);
+  background: var(--cv-accent-subtle);
+  color: var(--cv-accent);
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-weight: 500;
+}
+
+.cv-project-chevron {
+  font-size: 10px;
+  transition: transform var(--t-fast);
+}
+
+.cv-project-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.cv-project-conversations {
+  display: flex;
+  flex-direction: column;
+}
