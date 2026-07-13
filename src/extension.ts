@@ -179,11 +179,18 @@ class SidebarProvider implements vscode.WebviewViewProvider {
         }
 
         case 'LOAD_PLAN_STATUS':
-          send('PLAN_STATUS', _licenceGate?.getPlanLabel() ?? '🆓 Free');
+          send('PLAN_STATUS', {
+            isPro: _licenceGate ? _licenceGate.isProUser() : true,
+            label: _licenceGate ? _licenceGate.getPlanLabel() : '🆓 Free',
+          });
           break;
 
         case 'OPEN_SETTINGS':
           vscode.commands.executeCommand('workbench.action.openSettings', 'chatVault');
+          break;
+
+        case 'OPEN_UPGRADE_URL':
+          vscode.env.openExternal(vscode.Uri.parse('https://checkout.dodopayments.com/buy/pdt_0Nj6BTTgXLju7iS7Q1pfp'));
           break;
 
         case 'OPEN_DB_FOLDER':
@@ -317,6 +324,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
+
+  _licenceGate.onValidationStateChanged((isPro, label) => {
+    provider.postMessage('PLAN_STATUS', { isPro, label });
+  });
 
   // ── 8. Capture → Sidebar event bridge ────────────────────────────────────
   _captureManager.registerAll(context);

@@ -59,7 +59,8 @@ export type MessageType =
   | 'LOAD_STATS'                 // Request vault stats
   | 'LOAD_PLAN_STATUS'           // Request current plan/licence info
   | 'OPEN_SETTINGS'              // Open the extension settings page
-  | 'OPEN_DB_FOLDER';            // Open the database folder in explorer
+  | 'OPEN_DB_FOLDER'             // Open the database folder in explorer
+  | 'OPEN_UPGRADE_URL';          // Open checkout page for upgrade
 
 export interface VaultMessage<T = unknown> {
   type: MessageType;

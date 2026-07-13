@@ -42,6 +42,7 @@ interface AppState {
   isLoading: boolean;
   error: string | null;
   planLabel: string;
+  isPro: boolean;
   stats: { total: number; starred: number } | null;
 }
 
@@ -56,7 +57,7 @@ type AppAction =
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_FILTER'; payload: ActiveFilter }
   | { type: 'GO_BACK' }
-  | { type: 'SET_PLAN'; payload: string }
+  | { type: 'SET_PLAN'; payload: { isPro: boolean; label: string } }
   | { type: 'SET_STATS'; payload: { total: number; starred: number } };
 
 const initialState: AppState = {
@@ -69,6 +70,7 @@ const initialState: AppState = {
   isLoading: true,
   error: null,
   planLabel: '🔒 Free',
+  isPro: true,
   stats: null,
 };
 
@@ -152,7 +154,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       };
 
     case 'SET_PLAN':
-      return { ...state, planLabel: action.payload };
+      return { ...state, planLabel: action.payload.label, isPro: action.payload.isPro };
 
     case 'SET_STATS':
       return { ...state, stats: action.payload };
@@ -198,8 +200,8 @@ export default function App(): JSX.Element {
         dispatch({ type: 'CONVERSATION_DELETED', payload: id });
       }),
 
-      onMessage<string>('PLAN_STATUS', (label) => {
-        dispatch({ type: 'SET_PLAN', payload: label });
+      onMessage<{ isPro: boolean; label: string }>('PLAN_STATUS', (payload) => {
+        dispatch({ type: 'SET_PLAN', payload });
       }),
 
       onMessage<{ total: number; starred: number }>('STATS_LOADED', (stats) => {
@@ -362,6 +364,31 @@ export default function App(): JSX.Element {
           {state.planLabel}
         </span>
       </footer>
+
+      {!state.isPro && (
+        <div className="cv-paywall-overlay">
+          <div className="cv-paywall-card">
+            <div className="cv-paywall-icon">🔐</div>
+            <h2>Upgrade to ChatVault Pro</h2>
+            <p>Your 30-day Free Trial has expired.</p>
+            <div className="cv-paywall-desc">
+              Subscribe to ChatVault Pro for <strong>$10/month</strong> to continue saving and searching your AI conversation history.
+            </div>
+            <button
+              className="cv-paywall-btn-primary"
+              onClick={() => sendMessage('OPEN_UPGRADE_URL', null)}
+            >
+              Upgrade to Pro 🚀
+            </button>
+            <button
+              className="cv-paywall-btn-secondary"
+              onClick={() => sendMessage('OPEN_SETTINGS', null)}
+            >
+              Enter Licence Key
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

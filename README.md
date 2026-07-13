@@ -32,14 +32,13 @@ Stop scrolling endlessly to find that one prompt you used last month:
 
 ---
 
-## 💎 ChatVault PRO & Cloud Sync
+## 💎 ChatVault Pro & Subscription
 
-ChatVault is **100% free** for local, offline use (unlimited chats). 
-If you want to sync your chats across multiple computers (e.g., your work laptop and home desktop), you can unlock **ChatVault Pro**.
+ChatVault offers a **30-day Free Trial** with full access to all features (offline storage, advanced search, manual capture, notes, and Supabase Cloud Sync). After the trial period ends, a **ChatVault Pro Subscription ($10/month)** is required to continue using the extension.
 
-1. **Get a Pro License:** Head to our [Checkout Page](https://checkout.dodopayments.com/buy/pdt_0Nj6BTTgXLju7iS7Q1pfp) to grab a one-time license.
-2. **Activate:** Open the VS Code Settings (`Ctrl+,`), search for "ChatVault", and paste your License Key into the **Licence Key** field.
-3. **Set Up Sync (BYOB):** ChatVault uses a "Bring Your Own Backend" (BYOB) approach. Create a completely **free** Supabase project, get your API URL and Anon Key, and drop them into the ChatVault settings. 
+1. **Subscribe to Pro:** Head to our [Subscription Checkout Page](https://checkout.dodopayments.com/buy/pdt_0Nj6BTTgXLju7iS7Q1pfp) to start your subscription ($10/month, cancel anytime).
+2. **Activate:** Open the VS Code Settings (`Ctrl+,` or `Cmd+,` on macOS), search for "ChatVault", and paste your Licence Key into the **Licence Key** field.
+3. **Cloud Sync (Supabase BYOB):** ChatVault uses a "Bring Your Own Backend" (BYOB) approach. Create a completely **free** Supabase project, get your API URL and Anon Key, and drop them into the ChatVault settings.
 4. Your chats will now silently sync in the background across all your devices using an incremental last-write-wins algorithm!
 
 ---

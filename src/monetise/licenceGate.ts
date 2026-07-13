@@ -45,7 +45,7 @@ const DODO_ACTIVATE_URL = 'https://live.dodopayments.com/licenses/activate';
 const DODO_VALIDATE_URL = 'https://live.dodopayments.com/licenses/validate';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;       // 24 hours
-const TRIAL_DAYS   = 14;
+const TRIAL_DAYS   = 30;
 const TRIAL_MS     = TRIAL_DAYS * 24 * 60 * 60 * 1000;
 const CHECKOUT_URL = 'https://checkout.dodopayments.com/buy/pdt_0Nj6BTTgXLju7iS7Q1pfp';
 
@@ -56,6 +56,7 @@ export class LicenceGate implements vscode.Disposable {
   private readonly _context: vscode.ExtensionContext;
   private readonly _settings: Settings;
   private _validateTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _onValidationStateChanged: ((isPro: boolean, label: string) => void) | null = null;
 
   constructor(context: vscode.ExtensionContext, settings: Settings) {
     this._context = context;
@@ -80,6 +81,16 @@ export class LicenceGate implements vscode.Disposable {
     if (!existing) {
       this._context.globalState.update('chatVault.installDate', Date.now());
       console.log('[ChatVault Licence] First install recorded');
+    }
+  }
+
+  public onValidationStateChanged(cb: (isPro: boolean, label: string) => void): void {
+    this._onValidationStateChanged = cb;
+  }
+
+  private _notifyStateChanged(): void {
+    if (this._onValidationStateChanged) {
+      this._onValidationStateChanged(this.isProUser(), this.getPlanLabel());
     }
   }
 
@@ -116,11 +127,19 @@ export class LicenceGate implements vscode.Disposable {
       activationId,
     };
     this._context.globalState.update('chatVault.licenceCache', entry);
+    this._notifyStateChanged();
   }
 
   // ── Validation ───────────────────────────────────────────────────────────────
 
   private async _validateLicence(): Promise<boolean> {
+    this._notifyStateChanged();
+    const res = await this._validateLicenceInternal();
+    this._notifyStateChanged();
+    return res;
+  }
+
+  private async _validateLicenceInternal(): Promise<boolean> {
     const key = this._settings.licenceKey;
 
     if (!key) {
@@ -250,7 +269,7 @@ export class LicenceGate implements vscode.Disposable {
     vscode.window
       .showInformationMessage(
         `ChatVault Pro — ${label} requires a Pro licence${trialMsg}. ` +
-        `One-time purchase. No subscription.`,
+        `Subscription is $10/month. Cancel anytime.`,
         'Upgrade to Pro 🚀',
         'Enter Licence Key',
         'Not Now'
@@ -277,7 +296,7 @@ export class LicenceGate implements vscode.Disposable {
     if (this.isProUser()) {
       return '🔑 Pro';
     }
-    return '🆓 Free';
+    return '🆓 Free (Trial Expired)';
   }
 
   /**
@@ -288,6 +307,7 @@ export class LicenceGate implements vscode.Disposable {
     // Clear cache so _validateLicence fetches fresh
     this._context.globalState.update('chatVault.licenceCache', undefined);
     this._isProResolved = null;
+    this._notifyStateChanged();
     await this._validateLicence();
   }
 
