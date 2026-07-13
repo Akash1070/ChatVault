@@ -2,7 +2,7 @@
   "name": "chatvault",
   "displayName": "ChatVault",
   "description": "Capture, persist, search and manage every AI chat session across IDE sessions. Works in VS Code, Cursor, Windsurf.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "akashkumarjha",
   "icon": "media/icon.png",
   "license": "MIT",
@@ -28,7 +28,12 @@
     "manager"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:chatVault.sidebar",
+    "onCommand:chatVault.saveConversation",
+    "onCommand:chatVault.openVault",
+    "onCommand:chatVault.newConversation",
+    "onCommand:chatVault.searchConversations"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -196,12 +201,12 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",
     "@types/dompurify": "^3.0.5",
-    "better-sqlite3": "^9.4.3",
     "dompurify": "^3.4.12",
     "fuse.js": "^7.0.0",
     "marked": "^18.0.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sql.js": "^1.14.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -209,6 +214,7 @@
     "@types/node": "^20.11.5",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
+    "@types/sql.js": "^1.4.11",
     "@types/uuid": "^9.0.7",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.19.0",

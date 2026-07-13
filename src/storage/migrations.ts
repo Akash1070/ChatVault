@@ -19,13 +19,13 @@
  *   messages      — one row per message turn (user/assistant/system)
  */
 
-import Database from 'better-sqlite3';
+import { SqlJsDatabase } from './sqlJsShim';
 
 /** A single versioned migration step. */
 interface Migration {
   version: number;
   description: string;
-  up: (db: Database.Database) => void;
+  up: (db: SqlJsDatabase) => void;
 }
 
 /**
@@ -36,7 +36,7 @@ const MIGRATIONS: Migration[] = [
   {
     version: 1,
     description: 'Initial schema: conversations and messages tables',
-    up: (db: Database.Database) => {
+    up: (db: SqlJsDatabase) => {
       // ─── conversations table ─────────────────────────────────────────────
       db.exec(`
         CREATE TABLE IF NOT EXISTS conversations (
@@ -163,7 +163,7 @@ const MIGRATIONS: Migration[] = [
   {
     version: 2,
     description: 'Add notes column to conversations for user annotations',
-    up: (db: Database.Database) => {
+    up: (db: SqlJsDatabase) => {
       // ALTER TABLE in SQLite only supports ADD COLUMN — safe to run idempotently
       // by checking if the column already exists first.
       const cols = db
@@ -181,7 +181,7 @@ const MIGRATIONS: Migration[] = [
   {
     version: 3,
     description: 'Add message_count computed cache column for faster list queries',
-    up: (db: Database.Database) => {
+    up: (db: SqlJsDatabase) => {
       const cols = db
         .prepare("PRAGMA table_info('conversations')")
         .all() as Array<{ name: string }>;
@@ -222,7 +222,7 @@ const MIGRATIONS: Migration[] = [
   {
     version: 4,
     description: 'Add kv_store table for persistent key-value pairs (sync cursor, etc.)',
-    up: (db: Database.Database) => {
+    up: (db: SqlJsDatabase) => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS kv_store (
           key   TEXT PRIMARY KEY NOT NULL,
@@ -237,7 +237,7 @@ const MIGRATIONS: Migration[] = [
  * Reads the current schema version from the database.
  * SQLite PRAGMA user_version starts at 0 for new databases.
  */
-function getCurrentVersion(db: Database.Database): number {
+function getCurrentVersion(db: SqlJsDatabase): number {
   const row = db.prepare('PRAGMA user_version').get() as { user_version: number };
   return row.user_version;
 }
@@ -247,7 +247,7 @@ function getCurrentVersion(db: Database.Database): number {
  * Note: PRAGMA user_version cannot be used in a prepared statement with
  * parameters (SQLite limitation) — we must interpolate directly.
  */
-function setVersion(db: Database.Database, version: number): void {
+function setVersion(db: SqlJsDatabase, version: number): void {
   // Integer interpolation is safe here — version is always a number we control
   db.exec(`PRAGMA user_version = ${version};`);
 }
@@ -260,7 +260,7 @@ function setVersion(db: Database.Database, version: number): void {
  * If any migration throws, the transaction rolls back and the version
  * does NOT advance, ensuring the DB stays in a consistent state.
  */
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: SqlJsDatabase): void {
   const currentVersion = getCurrentVersion(db);
   const pending = MIGRATIONS.filter((m) => m.version > currentVersion);
 

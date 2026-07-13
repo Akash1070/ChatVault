@@ -26,6 +26,7 @@ import {
 } from '../storage/conversationRepo';
 import { detectSourceIde, parseConversationText, getCaptureGuidance } from './cursorAdapter';
 import { Settings } from '../config/settings';
+import { LocalFileParser } from './localFileParser';
 
 // ─── Event payloads ────────────────────────────────────────────────────────────
 
@@ -65,9 +66,12 @@ export class CaptureManager implements vscode.Disposable {
 
   private readonly _disposables: vscode.Disposable[] = [];
   private readonly _settings: Settings;
+  private readonly _localParser: LocalFileParser;
+  private _pollTimer?: NodeJS.Timeout;
 
   constructor(settings: Settings) {
     this._settings = settings;
+    this._localParser = new LocalFileParser();
   }
 
   public registerAll(context: vscode.ExtensionContext): void {
@@ -75,7 +79,35 @@ export class CaptureManager implements vscode.Disposable {
     this._registerManualCommand(context);
     this._registerClipboardCommand(context);
     this._registerToggleCommand(context);
+    this._startPolling();
   }
+
+  private _startPolling() {
+    // Poll every 5 minutes
+    this._pollTimer = setInterval(async () => {
+      if (!this._settings.autoCapture) return;
+      const logs = await this._localParser.pollLogs();
+      for (const log of logs) {
+        const messages = parseConversationText(log.content);
+        if (messages.length > 0) {
+          this.captureMessages(messages, { sourceIde: log.ide, title: 'Auto-captured Log' });
+        }
+      }
+    }, 5 * 60 * 1000);
+
+    // Initial poll
+    setTimeout(async () => {
+      if (!this._settings.autoCapture) return;
+      const logs = await this._localParser.pollLogs();
+      for (const log of logs) {
+        const messages = parseConversationText(log.content);
+        if (messages.length > 0) {
+          this.captureMessages(messages, { sourceIde: log.ide, title: 'Auto-captured Log' });
+        }
+      }
+    }, 5000);
+  }
+
 
   // ── A: VS Code Chat Participant (VS Code 1.90+ / Windsurf) ─────────────────
 
@@ -375,6 +407,9 @@ export class CaptureManager implements vscode.Disposable {
   }
 
   public dispose(): void {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+    }
     this._onConversationSaved.dispose();
     this._onMessageAdded.dispose();
     this._disposables.forEach((d) => d.dispose());

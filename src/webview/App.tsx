@@ -49,6 +49,7 @@ type AppAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'CONVERSATIONS_LOADED'; payload: ConversationSummary[] }
+  | { type: 'NEW_CONVERSATION'; payload: ConversationSummary }
   | { type: 'CONVERSATION_SELECTED'; payload: { conversation: Conversation; messages: Message[] } }
   | { type: 'CONVERSATION_UPDATED'; payload: Conversation }
   | { type: 'CONVERSATION_DELETED'; payload: string }
@@ -85,6 +86,16 @@ function reducer(state: AppState, action: AppAction): AppState {
         conversations: action.payload,
         isLoading: false,
         error: null,
+      };
+
+    case 'NEW_CONVERSATION':
+      // Ensure we don't add duplicates based on ID
+      if (state.conversations.find((c) => c.id === action.payload.id)) {
+        return state;
+      }
+      return {
+        ...state,
+        conversations: [action.payload, ...state.conversations],
       };
 
     case 'CONVERSATION_SELECTED':
@@ -162,6 +173,10 @@ export default function App(): JSX.Element {
     const unsubs = [
       onMessage<ConversationSummary[]>('CONVERSATIONS_LOADED', (payload) => {
         dispatch({ type: 'CONVERSATIONS_LOADED', payload });
+      }),
+
+      onMessage<ConversationSummary>('NEW_CONVERSATION', (payload) => {
+        dispatch({ type: 'NEW_CONVERSATION', payload });
       }),
 
       onMessage<{ conversation: Conversation; messages: Message[] }>(

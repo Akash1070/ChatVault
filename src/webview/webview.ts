@@ -40,6 +40,7 @@ export type MessageType =
   | 'CONVERSATION_CREATED'       // New conversation added
   | 'CONVERSATION_UPDATED'       // An existing conversation was patched
   | 'CONVERSATION_DELETED'       // Soft/hard delete confirmation
+  | 'NEW_CONVERSATION'           // A new conversation captured in background
   | 'SEARCH_RESULTS'             // Results from a search query
   | 'EXPORT_RESULT'              // Export string (to display/copy)
   | 'STATS_LOADED'               // Vault statistics

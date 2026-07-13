@@ -245,7 +245,7 @@ function _generateNonce(): string {
 
 // ─── activate() ──────────────────────────────────────────────────────────────
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('[ChatVault] Activating…');
 
   // ── 1. Settings ──────────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── 2. Database ──────────────────────────────────────────────────────────
   try {
-    initialiseDb(_settings.storagePath);
+    await initialiseDb(_settings.storagePath);
   } catch (err) {
     vscode.window.showErrorMessage(
       `ChatVault: DB init failed — ${err instanceof Error ? err.message : err}`
@@ -321,6 +321,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('chatVault.openVault', () => {
       vscode.commands.executeCommand(`${SidebarProvider.VIEW_ID}.focus`);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('chatVault.newConversation', () => {
+      vscode.commands.executeCommand('chatVault.saveConversation');
     })
   );
 

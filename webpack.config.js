@@ -29,11 +29,8 @@ const extensionConfig = {
   },
 
   externals: {
-    // VS Code module is provided by the host — never bundle it
+    // vscode is provided by the host
     vscode: 'commonjs vscode',
-    // better-sqlite3 uses native Node addons (.node files).
-    // We must mark it external and copy the native binary separately.
-    'better-sqlite3': 'commonjs better-sqlite3',
   },
 
   resolve: {
@@ -63,10 +60,10 @@ const extensionConfig = {
     new CopyPlugin({
       patterns: [
         {
-          // Copy the .node binary for the current platform
-          from: 'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
-          to: 'better_sqlite3.node',
-          noErrorOnMissing: true, // Will be present after npm install
+          // Copy sql-wasm.wasm for sql.js
+          from: 'node_modules/sql.js/dist/sql-wasm.wasm',
+          to: 'sql-wasm.wasm',
+          noErrorOnMissing: true,
         },
         {
           // Copy the media assets (icon, css) referenced in the webview HTML

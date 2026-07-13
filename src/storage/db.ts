@@ -17,14 +17,14 @@
  *   to create the file — SQLite will error if the directory is missing.
  */
 
-import Database from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { runMigrations, getLatestVersion } from './migrations';
+import { SqlJsDatabase, createSqlJsDatabase } from './sqlJsShim';
 
 /** The single shared database connection. Null until initialise() is called. */
-let _db: Database.Database | null = null;
+let _db: SqlJsDatabase | null = null;
 
 /**
  * Initialises the database connection and runs all pending migrations.
@@ -36,7 +36,7 @@ let _db: Database.Database | null = null;
  * @returns The initialised Database instance
  * @throws If the database file cannot be created or migrations fail
  */
-export function initialiseDb(overridePath?: string): Database.Database {
+export async function initialiseDb(overridePath?: string): Promise<SqlJsDatabase> {
   if (_db) {
     return _db;
   }
@@ -52,15 +52,7 @@ export function initialiseDb(overridePath?: string): Database.Database {
 
   console.log(`[ChatVault] Opening database at: ${dbPath}`);
 
-  _db = new Database(dbPath, {
-    // Verbose logging in development — set to undefined in production builds
-    // via webpack DefinePlugin or process.env.NODE_ENV checks
-    verbose: process.env.NODE_ENV === 'development'
-      ? (message?: unknown, ...additionalArgs: unknown[]) => {
-          console.debug('[ChatVault SQL]', message, ...additionalArgs);
-        }
-      : undefined,
-  });
+  _db = await createSqlJsDatabase(dbPath);
 
   // ── Performance & reliability PRAGMAs ────────────────────────────────────
   // WAL mode: readers don't block writers, writers don't block readers.
@@ -81,7 +73,7 @@ export function initialiseDb(overridePath?: string): Database.Database {
   _db.pragma('cache_size = -65536'); // Negative = kibibytes: 64MB
 
   // ── Run pending schema migrations ────────────────────────────────────────
-  runMigrations(_db);
+  runMigrations(_db as any);
 
   const latestVersion = getLatestVersion();
   console.log(`[ChatVault] Database ready at schema version ${latestVersion}`);
@@ -95,7 +87,7 @@ export function initialiseDb(overridePath?: string): Database.Database {
  * @throws If called before initialiseDb() — this is a programming error
  *         and should never happen in a correctly initialised extension.
  */
-export function getDb(): Database.Database {
+export function getDb(): SqlJsDatabase {
   if (!_db) {
     throw new Error(
       '[ChatVault] Database accessed before initialisation. ' +
