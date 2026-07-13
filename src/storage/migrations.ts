@@ -277,13 +277,17 @@ export function runMigrations(db: SqlJsDatabase): void {
       `[ChatVault] Applying migration v${migration.version}: ${migration.description}`
     );
 
-    // Wrap each migration in a transaction for atomicity
+    // Wrap the schema changes in a transaction for atomicity.
+    // IMPORTANT: PRAGMA user_version cannot be set inside a transaction in sql.js,
+    // so we call setVersion AFTER the transaction commits.
     const applyMigration = db.transaction(() => {
       migration.up(db);
-      setVersion(db, migration.version);
     });
 
     applyMigration();
+
+    // Set the version AFTER the transaction has committed
+    setVersion(db, migration.version);
 
     console.log(`[ChatVault] Migration v${migration.version} applied successfully`);
   }

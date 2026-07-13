@@ -11,6 +11,7 @@ export class SqlJsDatabase {
   public db: any;
   public name: string;
   private memoryMode: boolean;
+  private inTransaction: boolean = false;
 
   constructor(private dbPath: string) {
     this.name = dbPath;
@@ -22,7 +23,7 @@ export class SqlJsDatabase {
     // WAL mode and cache PRAGMAs aren't really applicable to sql.js,
     // but we support the method so it doesn't crash.
     try {
-      this.db.exec(`PRAGMA ${str}`);
+      this.db.run(`PRAGMA ${str}`);
     } catch (e) {
       // Ignore pragma errors
     }
@@ -32,21 +33,42 @@ export class SqlJsDatabase {
     return new SqlJsStatement(this, sql);
   }
 
+  /**
+   * Executes one or more SQL statements.
+   * Does NOT save inside a transaction — save happens at COMMIT.
+   */
   public exec(sql: string): void {
-    this.db.exec(sql);
-    this.save();
+    this.db.run(sql);
+    // Only persist immediately when NOT inside a transaction.
+    // Inside a transaction, save() is called at COMMIT time.
+    if (!this.inTransaction) {
+      this.save();
+    }
   }
 
   public transaction(fn: Function): Function {
     return (...args: any[]) => {
-      this.db.exec('BEGIN TRANSACTION');
+      // Guard: if already in a transaction, just run the function directly
+      if (this.inTransaction) {
+        return fn(...args);
+      }
+
+      this.inTransaction = true;
       try {
+        this.db.run('BEGIN');
         const result = fn(...args);
-        this.db.exec('COMMIT');
+        this.db.run('COMMIT');
+        this.inTransaction = false;
         this.save();
         return result;
       } catch (e) {
-        this.db.exec('ROLLBACK');
+        this.inTransaction = false;
+        // Only rollback if there's actually an active transaction
+        try {
+          this.db.run('ROLLBACK');
+        } catch (_rollbackErr) {
+          // Ignore rollback errors — transaction may have already ended
+        }
         throw e;
       }
     };
@@ -93,8 +115,11 @@ class SqlJsStatement {
     } finally {
       stmt.free();
     }
+    // Save after write ops, but only if not inside a transaction
     if (this.sql.trim().toUpperCase().match(/^(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER)/)) {
-      this.shim.save();
+      if (!(this.shim as any).inTransaction) {
+        this.shim.save();
+      }
     }
     return { changes: 1, lastInsertRowid: 0 };
   }
@@ -131,7 +156,7 @@ class SqlJsStatement {
  * Async factory to initialize sql.js and create the Database.
  */
 export async function createSqlJsDatabase(dbPath: string): Promise<SqlJsDatabase> {
-  // Pass locateFile so sql.js can find the .wasm file if it's bundled weirdly
+  // Pass locateFile so sql.js can find the .wasm file next to the extension bundle
   const SQL = await initSqlJs({
     locateFile: file => path.join(__dirname, file)
   });
