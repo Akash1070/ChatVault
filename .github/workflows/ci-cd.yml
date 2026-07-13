@@ -1,0 +1,90 @@
+name: CI / CD — AI Conversation Vault
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── CI: runs on every push and PR ─────────────────────────────────────────────
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (no native build — prebuilt binary download follows)
+        run: npm ci --ignore-scripts
+
+      - name: Download better-sqlite3 prebuilt binary (linux-x64)
+        run: node node_modules/better-sqlite3/scripts/download-prebuilt.js
+        continue-on-error: true
+
+      - name: Compile both webpack bundles
+        run: npm run compile
+
+      - name: Run TypeScript type-check (no emit)
+        run: npx tsc --noEmit
+
+  # ── CD: publishes on vX.Y.Z tag push ──────────────────────────────────────────
+  publish:
+    name: Publish to Marketplace + Open VSX
+    needs: build-and-lint
+    runs-on: windows-latest   # windows for native better-sqlite3 prebuilt
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    strategy:
+      matrix:
+        platform: [win32-x64, linux-x64, darwin-x64, linux-arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Bundle prebuilt binaries for ${{ matrix.platform }}
+        run: node scripts/bundle-native.js ${{ matrix.platform }}
+
+      - name: Build production bundle
+        run: npm run build  # webpack --mode production
+
+      - name: Install vsce + ovsx
+        run: npm install -g @vscode/vsce ovsx
+
+      - name: Package VSIX
+        run: vsce package --target ${{ matrix.platform }} --out "ai-conversation-vault-${{ github.ref_name }}-${{ matrix.platform }}.vsix"
+
+      - name: Publish to VS Code Marketplace
+        if: matrix.platform == 'win32-x64'   # Publish once; VSIX is cross-platform
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: vsce publish --pat $VSCE_PAT --packagePath "ai-conversation-vault-${{ github.ref_name }}-${{ matrix.platform }}.vsix"
+
+      - name: Publish to Open VSX Registry
+        if: matrix.platform == 'win32-x64'
+        env:
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+        run: ovsx publish "ai-conversation-vault-${{ github.ref_name }}-${{ matrix.platform }}.vsix" --pat $OVSX_TOKEN
+
+      - name: Upload VSIX as GitHub Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "ai-conversation-vault-${{ github.ref_name }}-${{ matrix.platform }}.vsix"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

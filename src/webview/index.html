@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!--
+    VS Code Content Security Policy for webviews.
+    ${cspSource} is replaced at runtime by the extension host with the
+    webview's specific nonce-gated content source.
+    We allow 'unsafe-inline' for styles because style-loader injects CSS via
+    <style> tags — there's no CSP nonce path for style-loader in webpack.
+    Scripts are loaded from the dist/webview/ directory via vscode-resource: URIs.
+  -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${cspSource} data:;"
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Conversation Vault</title>
+</head>
+<body>
+  <!--
+    The React app mounts here.
+    The entire UI — conversation list, search bar, viewer, empty state —
+    is rendered by the React tree in webview.js.
+  -->
+  <div id="root"></div>
+
+  <!--
+    The compiled React+CSS bundle.
+    The nonce is injected by the extension host at WebviewPanel creation time,
+    matching the CSP above. Without a matching nonce, VS Code blocks the script.
+    The script src uses a __WEBVIEW_URI__ placeholder replaced in provider.ts.
+  -->
+  <script nonce="${nonce}" src="${webviewUri}"></script>
+</body>
+</html>

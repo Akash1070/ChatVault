@@ -1,0 +1,709 @@
+/**
+ * src/webview/styles.css
+ *
+ * Global styles for the AI Conversation Vault webview sidebar.
+ *
+ * Design system:
+ * - Uses VS Code CSS variables (--vscode-*) for theme-aware colours so the UI
+ *   matches the user's chosen theme (dark/light/high contrast) automatically.
+ * - Custom properties defined on :root override VS Code variables only where
+ *   we need them — e.g. brand accent, glow effects.
+ * - Glassmorphism cards: semi-transparent backgrounds with backdrop-filter blur.
+ * - Micro-animations: 200ms ease transitions on all interactive elements.
+ * - Custom scrollbars styled to match the sidebar context.
+ * - Typography: the system font stack matches VS Code's own UI font.
+ */
+
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Brand colours — visible as accents over the VS Code theme */
+  --cv-accent:        #7c6af7;   /* Purple — vault brand */
+  --cv-accent-dim:    #5b4bd4;
+  --cv-accent-glow:   rgba(124, 106, 247, 0.25);
+  --cv-accent-subtle: rgba(124, 106, 247, 0.08);
+
+  /* Semantic colours derived from VS Code theme tokens */
+  --cv-bg:            var(--vscode-sideBar-background, #1e1e2e);
+  --cv-surface:       var(--vscode-editor-background, #1e1e2e);
+  --cv-border:        var(--vscode-panel-border, rgba(255,255,255,0.08));
+  --cv-text:          var(--vscode-foreground, #cdd6f4);
+  --cv-text-muted:    var(--vscode-descriptionForeground, #888aa0);
+  --cv-text-faint:    rgba(205, 214, 244, 0.35);
+  --cv-input-bg:      var(--vscode-input-background, rgba(255,255,255,0.05));
+  --cv-input-border:  var(--vscode-input-border, rgba(255,255,255,0.12));
+  --cv-hover:         var(--vscode-list-hoverBackground, rgba(255,255,255,0.06));
+  --cv-selected:      var(--vscode-list-activeSelectionBackground, rgba(124,106,247,0.2));
+  --cv-danger:        #f38ba8;
+  --cv-success:       #a6e3a1;
+  --cv-warning:       #f9e2af;
+  --cv-star:          #fab387;
+
+  /* Spacing scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* Border radius */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  /* Transitions */
+  --t-fast: 150ms ease;
+  --t-med:  200ms ease;
+  --t-slow: 300ms ease;
+
+  /* Typography — match VS Code's own UI font stack */
+  --font-ui: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  --font-mono: var(--vscode-editor-font-family, 'Cascadia Code', 'Fira Code', monospace);
+  --font-size-xs:  10px;
+  --font-size-sm:  11px;
+  --font-size-md:  12px;
+  --font-size-lg:  13px;
+  --font-size-xl:  14px;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-md);
+  color: var(--cv-text);
+  background: var(--cv-bg);
+  overflow: hidden; /* Scrolling is handled by inner containers */
+  height: 100vh;
+  user-select: none; /* Prevent accidental text selection during navigation */
+}
+
+/* Allow text selection in the conversation viewer */
+.cv-viewer-content {
+  user-select: text;
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.cv-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.cv-header {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--cv-border);
+  flex-shrink: 0;
+  background: var(--cv-bg);
+}
+
+.cv-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.cv-logo-icon {
+  font-size: 16px;
+}
+
+.cv-logo-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--cv-text);
+  letter-spacing: -0.01em;
+}
+
+.cv-logo-badge {
+  font-size: var(--font-size-xs);
+  background: var(--cv-accent-subtle);
+  color: var(--cv-accent);
+  border: 1px solid var(--cv-accent-glow);
+  border-radius: 99px;
+  padding: 2px 6px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Search bar ────────────────────────────────────────────────────────────── */
+.cv-search-wrap {
+  position: relative;
+}
+
+.cv-search-icon {
+  position: absolute;
+  left: var(--sp-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cv-text-muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.cv-search-input {
+  width: 100%;
+  background: var(--cv-input-bg);
+  border: 1px solid var(--cv-input-border);
+  border-radius: var(--r-md);
+  color: var(--cv-text);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-md);
+  padding: 6px var(--sp-2) 6px 28px;
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.cv-search-input::placeholder {
+  color: var(--cv-text-faint);
+}
+
+.cv-search-input:focus {
+  border-color: var(--cv-accent);
+  box-shadow: 0 0 0 2px var(--cv-accent-glow);
+}
+
+/* ── Filter tabs ───────────────────────────────────────────────────────────── */
+.cv-filters {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--cv-border);
+  flex-shrink: 0;
+}
+
+.cv-filter-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cv-text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+
+.cv-filter-tab:hover {
+  color: var(--cv-text);
+  background: var(--cv-hover);
+}
+
+.cv-filter-tab.active {
+  color: var(--cv-accent);
+  background: var(--cv-accent-subtle);
+  border-color: var(--cv-accent-glow);
+}
+
+/* ── Conversation list ─────────────────────────────────────────────────────── */
+.cv-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--sp-2) 0;
+}
+
+/* Custom scrollbar */
+.cv-list-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+.cv-list-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cv-list-wrap::-webkit-scrollbar-thumb {
+  background: var(--cv-border);
+  border-radius: 99px;
+}
+.cv-list-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--cv-text-faint);
+}
+
+.cv-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--sp-2) var(--sp-4);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background var(--t-fast), border-color var(--t-fast);
+  position: relative;
+}
+
+.cv-list-item:hover {
+  background: var(--cv-hover);
+}
+
+.cv-list-item.selected {
+  background: var(--cv-selected);
+  border-left-color: var(--cv-accent);
+}
+
+.cv-list-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.cv-list-item-title {
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--cv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.cv-list-item-star {
+  color: var(--cv-star);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.cv-list-item-preview {
+  font-size: var(--font-size-sm);
+  color: var(--cv-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-list-item-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.cv-list-item-date {
+  font-size: var(--font-size-xs);
+  color: var(--cv-text-faint);
+}
+
+.cv-list-item-count {
+  font-size: var(--font-size-xs);
+  color: var(--cv-text-faint);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Tags ──────────────────────────────────────────────────────────────────── */
+.cv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.cv-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  background: var(--cv-accent-subtle);
+  border: 1px solid var(--cv-accent-glow);
+  border-radius: 99px;
+  font-size: var(--font-size-xs);
+  color: var(--cv-accent);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* IDE source badge */
+.cv-ide-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--cv-border);
+  border-radius: 3px;
+  font-size: 9px;
+  color: var(--cv-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────────── */
+.cv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-6) var(--sp-4);
+  gap: var(--sp-3);
+  height: 100%;
+}
+
+.cv-empty-icon {
+  font-size: 40px;
+  opacity: 0.4;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+.cv-empty-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--cv-text);
+}
+
+.cv-empty-subtitle {
+  font-size: var(--font-size-md);
+  color: var(--cv-text-muted);
+  line-height: 1.5;
+  max-width: 220px;
+}
+
+.cv-empty-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--cv-accent-subtle);
+  border: 1px solid var(--cv-accent-glow);
+  border-radius: var(--r-md);
+  color: var(--cv-accent);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.cv-empty-shortcut:hover {
+  background: rgba(124, 106, 247, 0.15);
+  box-shadow: 0 0 12px var(--cv-accent-glow);
+  transform: translateY(-1px);
+}
+
+/* ── Conversation viewer ───────────────────────────────────────────────────── */
+.cv-viewer {
+  position: fixed;
+  inset: 0;
+  background: var(--cv-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  animation: slideIn var(--t-med) ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(12px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.cv-viewer-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--cv-border);
+  flex-shrink: 0;
+}
+
+.cv-btn-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px var(--sp-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--cv-text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  flex-shrink: 0;
+}
+
+.cv-btn-back:hover {
+  color: var(--cv-text);
+  background: var(--cv-hover);
+}
+
+.cv-viewer-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--cv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.cv-viewer-actions {
+  display: flex;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+}
+
+.cv-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--cv-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all var(--t-fast);
+}
+
+.cv-icon-btn:hover {
+  color: var(--cv-text);
+  background: var(--cv-hover);
+}
+
+.cv-icon-btn.danger:hover {
+  color: var(--cv-danger);
+  background: rgba(243, 139, 168, 0.1);
+}
+
+.cv-icon-btn.starred {
+  color: var(--cv-star);
+}
+
+.cv-viewer-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--cv-border);
+  flex-shrink: 0;
+}
+
+.cv-viewer-date {
+  font-size: var(--font-size-xs);
+  color: var(--cv-text-faint);
+}
+
+.cv-viewer-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Custom scrollbar for viewer */
+.cv-viewer-messages::-webkit-scrollbar { width: 4px; }
+.cv-viewer-messages::-webkit-scrollbar-track { background: transparent; }
+.cv-viewer-messages::-webkit-scrollbar-thumb { background: var(--cv-border); border-radius: 99px; }
+
+/* ── Message bubbles ───────────────────────────────────────────────────────── */
+.cv-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  animation: fadeUp 200ms ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cv-message-role {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cv-message-role.user     { color: var(--cv-accent); }
+.cv-message-role.assistant { color: var(--cv-success); }
+.cv-message-role.system   { color: var(--cv-text-muted); }
+
+.cv-message-role-time {
+  font-weight: 400;
+  color: var(--cv-text-faint);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.cv-message-content {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--cv-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  color: var(--cv-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cv-message.user .cv-message-content {
+  border-color: var(--cv-accent-glow);
+  background: var(--cv-accent-subtle);
+}
+
+.cv-message-token-count {
+  font-size: var(--font-size-xs);
+  color: var(--cv-text-faint);
+  text-align: right;
+}
+
+/* ── Notes panel ───────────────────────────────────────────────────────────── */
+.cv-notes-panel {
+  border-top: 1px solid var(--cv-border);
+  padding: var(--sp-3) var(--sp-4);
+  flex-shrink: 0;
+}
+
+.cv-notes-label {
+  font-size: var(--font-size-xs);
+  color: var(--cv-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--sp-2);
+}
+
+.cv-notes-textarea {
+  width: 100%;
+  min-height: 60px;
+  max-height: 120px;
+  background: var(--cv-input-bg);
+  border: 1px solid var(--cv-input-border);
+  border-radius: var(--r-md);
+  color: var(--cv-text);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  padding: var(--sp-2);
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  line-height: 1.5;
+}
+
+.cv-notes-textarea:focus {
+  border-color: var(--cv-accent);
+  box-shadow: 0 0 0 2px var(--cv-accent-glow);
+}
+
+.cv-notes-textarea::placeholder {
+  color: var(--cv-text-faint);
+}
+
+/* ── Status bar ────────────────────────────────────────────────────────────── */
+.cv-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-1) var(--sp-4);
+  border-top: 1px solid var(--cv-border);
+  flex-shrink: 0;
+  background: var(--cv-bg);
+}
+
+.cv-status-text {
+  font-size: var(--font-size-xs);
+  color: var(--cv-text-faint);
+}
+
+.cv-status-plan {
+  font-size: var(--font-size-xs);
+  color: var(--cv-accent);
+  cursor: pointer;
+  transition: color var(--t-fast);
+}
+
+.cv-status-plan:hover {
+  color: var(--cv-text);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.cv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  border: 1px solid transparent;
+}
+
+.cv-btn-primary {
+  background: var(--cv-accent);
+  color: white;
+  border-color: var(--cv-accent-dim);
+}
+
+.cv-btn-primary:hover {
+  background: var(--cv-accent-dim);
+  box-shadow: 0 0 12px var(--cv-accent-glow);
+  transform: translateY(-1px);
+}
+
+.cv-btn-ghost {
+  background: transparent;
+  color: var(--cv-text-muted);
+  border-color: var(--cv-border);
+}
+
+.cv-btn-ghost:hover {
+  background: var(--cv-hover);
+  color: var(--cv-text);
+}
+
+/* ── Loading spinner ───────────────────────────────────────────────────────── */
+.cv-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+}
+
+.cv-spinner::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--cv-border);
+  border-top-color: var(--cv-accent);
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error state ───────────────────────────────────────────────────────────── */
+.cv-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-4);
+  text-align: center;
+}
+
+.cv-error-icon { color: var(--cv-danger); font-size: 24px; }
+.cv-error-text { font-size: var(--font-size-sm); color: var(--cv-text-muted); }

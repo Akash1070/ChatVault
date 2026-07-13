@@ -1,0 +1,45 @@
+# .vscodeignore
+# Files excluded from the .vsix package published to the Marketplace.
+# Anything listed here is NOT shipped to end users — keep the package lean.
+
+# Source TypeScript — users receive compiled JS in dist/, not source
+src/
+out/
+# Test infrastructure
+.vscode-test/
+**/*.test.ts
+**/*.spec.ts
+# Build tooling
+webpack.config.js
+tsconfig*.json
+.eslintrc*
+.prettierrc*
+# Dependency source (native binaries ARE included via webpack CopyPlugin)
+node_modules/
+# Git artifacts
+.git/
+.gitignore
+.github/
+# Editor config
+.editorconfig
+.vscode/
+# CI/CD
+.travis.yml
+azure-pipelines.yml
+# Documentation (optional — remove this if you want README shipped)
+# README.md
+CHANGELOG.md
+# Coverage reports
+coverage/
+.nyc_output/
+# OS artifacts
+.DS_Store
+Thumbs.db
+# Scratch / dev notes
+NOTES.md
+TODO.md
+scratch/
+dist/**/*.map
+
+# Secrets
+.env

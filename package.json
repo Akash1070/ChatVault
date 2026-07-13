@@ -1,0 +1,227 @@
+{
+  "name": "chatvault",
+  "displayName": "ChatVault",
+  "description": "Capture, persist, search and manage every AI chat session across IDE sessions. Works in VS Code, Cursor, Windsurf.",
+  "version": "0.1.0",
+  "publisher": "akashkumarjha",
+  "icon": "media/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akash1070/ChatVault"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "chat",
+    "conversation",
+    "history",
+    "cursor",
+    "copilot",
+    "vault",
+    "manager"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "chatVault",
+          "title": "AI Conversation Vault",
+          "icon": "media/vault-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "chatVault": [
+        {
+          "type": "webview",
+          "id": "chatVault.sidebar",
+          "name": "Conversations",
+          "icon": "media/vault-icon.svg",
+          "contextualTitle": "AI Conversation Vault"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "chatVault.saveConversation",
+        "title": "Save AI Conversation",
+        "category": "ChatVault",
+        "icon": "$(save)"
+      },
+      {
+        "command": "chatVault.openVault",
+        "title": "Open Conversation Vault",
+        "category": "ChatVault",
+        "icon": "$(history)"
+      },
+      {
+        "command": "chatVault.newConversation",
+        "title": "New Conversation",
+        "category": "ChatVault",
+        "icon": "$(add)"
+      },
+      {
+        "command": "chatVault.exportConversation",
+        "title": "Export Conversation",
+        "category": "ChatVault",
+        "icon": "$(export)"
+      },
+      {
+        "command": "chatVault.deleteConversation",
+        "title": "Delete Conversation",
+        "category": "ChatVault",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "chatVault.starConversation",
+        "title": "Star Conversation",
+        "category": "ChatVault",
+        "icon": "$(star)"
+      },
+      {
+        "command": "chatVault.searchConversations",
+        "title": "Search Conversations",
+        "category": "ChatVault",
+        "icon": "$(search)"
+      },
+      {
+        "command": "chatVault.clearDatabase",
+        "title": "Clear All Conversations (Danger)",
+        "category": "ChatVault",
+        "icon": "$(warning)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "chatVault.newConversation",
+          "when": "view == chatVault.sidebar",
+          "group": "navigation@1"
+        },
+        {
+          "command": "chatVault.searchConversations",
+          "when": "view == chatVault.sidebar",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "chatVault.saveConversation"
+        },
+        {
+          "command": "chatVault.openVault"
+        },
+        {
+          "command": "chatVault.searchConversations"
+        },
+        {
+          "command": "chatVault.clearDatabase"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "chatVault.saveConversation",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "editorFocus"
+      },
+      {
+        "command": "chatVault.searchConversations",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f",
+        "when": "view == chatVault.sidebar"
+      }
+    ],
+    "configuration": {
+      "title": "AI Conversation Vault",
+      "properties": {
+        "chatVault.storagePath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path for the vault database. Leave empty to use the default (~/.ai-vault/vault.db)."
+        },
+        "chatVault.autoCapture": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically capture VS Code Copilot chat sessions."
+        },
+        "chatVault.defaultExportFormat": {
+          "type": "string",
+          "enum": [
+            "json",
+            "md",
+            "txt"
+          ],
+          "default": "md",
+          "description": "Default format when exporting a conversation."
+        },
+        "chatVault.maxConversationsShown": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum number of conversations to display in the sidebar list."
+        },
+        "chatVault.premiumLicenseKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your ChatVault premium license key for unlocking pro features."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack --mode development",
+    "watch": "webpack --watch --mode development",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.2",
+    "@types/dompurify": "^3.0.5",
+    "better-sqlite3": "^9.4.3",
+    "dompurify": "^3.4.12",
+    "fuse.js": "^7.0.0",
+    "marked": "^18.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.11.5",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@types/uuid": "^9.0.7",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^6.10.0",
+    "eslint": "^8.56.0",
+    "style-loader": "^3.3.4",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.90.1",
+    "webpack-cli": "^5.1.4"
+  }
+}
