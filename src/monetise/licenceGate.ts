@@ -47,7 +47,7 @@ const DODO_VALIDATE_URL = 'https://live.dodopayments.com/licenses/validate';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;       // 24 hours
 const TRIAL_DAYS   = 14;
 const TRIAL_MS     = TRIAL_DAYS * 24 * 60 * 60 * 1000;
-const CHECKOUT_URL = 'https://dodopayments.com'; // Update with product checkout URL before launch
+const CHECKOUT_URL = 'https://checkout.dodopayments.com/buy/pdt_0Nj6BTTgXLju7iS7Q1pfp';
 
 // ─── LicenceGate class ─────────────────────────────────────────────────────────
 
