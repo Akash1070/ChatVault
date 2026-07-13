@@ -64,14 +64,16 @@ jobs:
         run: vsce package --out "chatvault-${{ github.ref_name }}.vsix"
 
       - name: Publish to VS Code Marketplace
+        if: ${{ env.VSCE_PAT != '' }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: vsce publish --pat $VSCE_PAT --packagePath "chatvault-${{ github.ref_name }}.vsix"
+        run: vsce publish --pat "$VSCE_PAT" --packagePath "chatvault-${{ github.ref_name }}.vsix"
 
       - name: Publish to Open VSX Registry
+        if: ${{ env.OVSX_TOKEN != '' }}
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
-        run: ovsx publish "chatvault-${{ github.ref_name }}.vsix" --pat $OVSX_TOKEN
+        run: ovsx publish "chatvault-${{ github.ref_name }}.vsix" --pat "$OVSX_TOKEN"
 
       - name: Upload VSIX as GitHub Release Asset
         uses: softprops/action-gh-release@v2

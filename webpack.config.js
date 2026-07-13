@@ -31,6 +31,9 @@ const extensionConfig = {
   externals: {
     // vscode is provided by the host
     vscode: 'commonjs vscode',
+    // sql.js has a complex UMD wrapper from Emscripten that breaks when bundled by Webpack for Node targets.
+    // By keeping it external, Node.js will natively require() it from node_modules.
+    'sql.js': 'commonjs sql.js',
   },
 
   resolve: {
