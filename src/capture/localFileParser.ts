@@ -340,15 +340,56 @@ export class LocalFileParser {
 
   /**
    * Parses Antigravity overview.txt log format.
-   * Each line is: "USER: ..." or "MODEL: ..."
+   * Handles both JSON-lines format and legacy line-prefixed format.
    */
   private parseOverviewTxt(
     raw: string
   ): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
     const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
     const lines = raw.split('\n');
-    let current: { role: 'user' | 'assistant' | 'system'; lines: string[] } | null = null;
 
+    // Try parsing as JSON lines first
+    const jsonMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+    let hasJsonLines = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const obj = JSON.parse(trimmed);
+          let role: 'user' | 'assistant' | 'system' | null = null;
+          if (obj.source === 'USER_EXPLICIT' || obj.source === 'USER' || obj.type === 'USER_INPUT') {
+            role = 'user';
+          } else if (obj.source === 'MODEL' || obj.type === 'PLANNER_RESPONSE' || obj.type === 'PLANNER_RETRY') {
+            role = 'assistant';
+          }
+
+          let content = typeof obj.content === 'string' ? obj.content.trim() : '';
+          if (role && content) {
+            if (role === 'user') {
+              const userReqMatch = content.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/);
+              if (userReqMatch) {
+                content = userReqMatch[1].trim();
+              }
+            }
+            if (content) {
+              jsonMessages.push({ role, content });
+              hasJsonLines = true;
+            }
+          }
+        } catch {
+          // Ignore parse errors on individual lines
+        }
+      }
+    }
+
+    if (hasJsonLines && jsonMessages.length > 0) {
+      return jsonMessages;
+    }
+
+    // Fallback to legacy format parsing
+    let current: { role: 'user' | 'assistant' | 'system'; lines: string[] } | null = null;
     for (const line of lines) {
       if (line.startsWith('USER:')) {
         if (current) messages.push({ role: current.role, content: current.lines.join('\n').trim() });
